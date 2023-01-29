@@ -38,13 +38,14 @@ protected:
     QtRuleBar *m_vruler;
     QtCornerBox * box;
 
+    virtual bool event(QEvent* ev) override;
 private:
     bool maybeSave();
     void setCurrentFile(const QString &fileName);
     QString strippedName(const QString &fullFileName);
     void loadCanvas( QXmlStreamReader *xml );
     GraphicsItemGroup * loadGroupFromXML( QXmlStreamReader * xml );
-
+    void showAll();
     QString curFile;
     bool isUntitled;
     bool modified;

@@ -12,6 +12,8 @@
 #include <cmath>
 #include "drawscene.h"
 
+constexpr static double M_PI = 3.1415926;
+
 ShapeMimeData::ShapeMimeData(QList<QGraphicsItem *> items)
 {
     foreach (QGraphicsItem *item , items ) {

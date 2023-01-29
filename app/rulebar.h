@@ -10,7 +10,7 @@ class QPainter;
 class QGraphicsView;
 QT_END_NAMESPACE
 
-#define RULER_SIZE    16
+#define RULER_SIZE    24
 
 class QtCornerBox : public QWidget
 {

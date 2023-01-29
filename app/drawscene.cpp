@@ -308,7 +308,7 @@ void DrawScene::destroyGroup(QGraphicsItemGroup *group)
 void DrawScene::drawBackground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsScene::drawBackground(painter,rect);
-    painter->fillRect(sceneRect(),Qt::white);
+    painter->fillRect(sceneRect(),Qt::blue);
     if( m_grid ){
         m_grid->paintGrid(painter,sceneRect().toRect());
     }

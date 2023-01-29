@@ -18,6 +18,7 @@ DrawView::DrawView(QGraphicsScene *scene)
     isUntitled = true;
 
     modified = false;
+    setCacheMode(QGraphicsView::CacheNone);
 }
 
 void DrawView::zoomIn()
@@ -43,29 +44,51 @@ void DrawView::newFile()
 
 bool DrawView::loadFile(const QString &fileName)
 {
-    QFile file(fileName);
-    if (!file.open(QFile::ReadOnly | QFile::Text)) {
-        QMessageBox::warning(this, tr("Qt Drawing"),
-                             tr("Cannot read file %1:\n%2.")
-                             .arg(fileName)
-                             .arg(file.errorString()));
-        return false;
-    }
+    QImageReader reader(fileName);
+    if (reader.imageFormat() == QImage::Format_Invalid) {
+        QFile file(fileName);
+        if (!file.open(QFile::ReadOnly | QFile::Text)) {
+            QMessageBox::warning(this, tr("Qt Drawing"),
+                tr("Cannot read file %1:\n%2.")
+                .arg(fileName)
+                .arg(file.errorString()));
+            return false;
+        }
 
-    QXmlStreamReader xml(&file);
-    if (xml.readNextStartElement()) {
-        if ( xml.name() == tr("canvas"))
-        {
-            int width = xml.attributes().value(tr("width")).toInt();
-            int height = xml.attributes().value(tr("height")).toInt();
-            scene()->setSceneRect(0,0,width,height);
-            loadCanvas(&xml);
+        QXmlStreamReader xml(&file);
+        if (xml.readNextStartElement()) {
+            if (xml.name() == tr("canvas"))
+            {
+                int width = xml.attributes().value(tr("width")).toInt();
+                int height = xml.attributes().value(tr("height")).toInt();
+                scene()->setSceneRect(0, 0, width, height);
+                loadCanvas(&xml);
+            }
+        }
+
+        setCurrentFile(fileName);
+        qDebug() << xml.errorString();
+        return !xml.error();
+    }
+    else {
+        QImage img;
+        if (!reader.read(&img)) {
+            return false;
+        }
+        else {
+            QGraphicsPixmapItem* pItem = new QGraphicsPixmapItem();
+            pItem->setPixmap(QPixmap::fromImage(img));
+            scene()->addItem(pItem);
+            scene()->setSceneRect(pItem->boundingRect());
+            pItem->setPos(0, 0);
+            QApplication::processEvents();
+            fitInView(pItem, Qt::IgnoreAspectRatio);
+            centerOn(pItem);
+            updateRuler();
         }
     }
 
-    setCurrentFile(fileName);
-    qDebug()<<xml.errorString();
-    return !xml.error();
+    return true;
 }
 
 bool DrawView::save()
@@ -204,6 +227,16 @@ void DrawView::updateRuler()
     //qDebug()<<viewbox<<QPoint(lower_x,upper_x) << QPoint(lower_y,upper_y) << offset;
 }
 
+bool DrawView::event(QEvent* ev)
+{
+    bool retVal = QGraphicsView::event(ev);
+    if (ev->type() == QEvent::Polish) {
+        // call fitView
+        QTimer::singleShot(200, this, &DrawView::showAll);
+    }
+    return retVal;
+}
+
 bool DrawView::maybeSave()
 {
     if (isModified()) {
@@ -311,5 +344,11 @@ GraphicsItemGroup *DrawView::loadGroupFromXML(QXmlStreamReader *xml)
         return group;
     }
     return 0;
+}
+
+void DrawView::showAll()
+{
+    fitInView(scene()->sceneRect(), Qt::IgnoreAspectRatio);
+    updateRuler();
 }
 
