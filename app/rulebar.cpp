@@ -24,9 +24,13 @@ static SPRulerMetric const ruler_metric_inches = {
 
 QtRuleBar::QtRuleBar(Qt::Orientation direction, QGraphicsView * view, QWidget *parent)
     :QWidget(parent),
-    m_view(view),
-    m_faceColor(0xFF, 0xFF, 0xFF)
+    m_faceColor(0xFF, 0xFF, 0xFF),
+    mLabel(QString()),
+    mLabelFont(font()),
+    mTickerSize(24),
+    m_view(view)
 {
+    mLabelFont.setPixelSize(16);
     m_lower = m_upper = m_maxsize = 0;
     m_lastPos = QPoint(0,0);
     m_direction   = direction;
@@ -49,6 +53,38 @@ void QtRuleBar::updatePosition(const QPoint &pos)
     update();
 }
 
+void QtRuleBar::setLabel(const QString &label)
+{
+    mLabel = label;
+}
+
+void QtRuleBar::setLabelFont(const QFont &font)
+{
+    mLabelFont = font;
+}
+
+QFont QtRuleBar::getLabelFont() const
+{
+    return mLabelFont;
+}
+
+void QtRuleBar::setTickerSize(int size)
+{
+    mTickerSize = size;
+}
+
+int QtRuleBar::getTickerSize() const
+{
+    return mTickerSize;
+}
+
+int QtRuleBar::getRulerSize() const
+{
+    QFont font = getLabelFont();
+    int fontHeight = font.pixelSize();
+    return fontHeight + getTickerSize();
+}
+
 void QtRuleBar::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
@@ -63,8 +99,31 @@ void QtRuleBar::paintEvent(QPaintEvent *event)
         painter.drawLine(rulerRect.topRight(),rulerRect.bottomRight());
     }
 
+    drawLabel(&painter);
     drawTicker(&painter);
     drawPos(&painter);
+}
+
+void QtRuleBar::drawLabel(QPainter *painter)
+{
+    painter->save();
+    painter->setFont(mLabelFont);
+    QFontMetrics fm(mLabelFont);
+    int w = fm.width(mLabel);
+    if (m_direction == Qt::Horizontal) {
+        const int x = rect().width() / 2 - w / 2;
+        const int y = 0;
+        painter->drawText(x, y, w, mLabelFont.pixelSize(), Qt::AlignCenter, mLabel);
+    } else {
+        QRect textRect(-w/2,-mLabelFont.pixelSize()/2,w,mLabelFont.pixelSize());
+        painter->save();
+        painter->translate(mLabelFont.pixelSize() / 2, rect().height() / 2 + w/2);
+        painter->rotate(90);
+        painter->drawText(textRect,Qt::AlignCenter, mLabel);
+        painter->restore();
+    }
+
+    painter->restore();
 }
 
 void QtRuleBar::drawTicker(QPainter *painter)
@@ -83,6 +142,7 @@ void QtRuleBar::drawTicker(QPainter *painter)
     int             text_size;
     int             pos;
     double          max_size = m_maxsize;
+    int offset = 0;
     SPRulerMetric    ruler_metric = ruler_metric_general; /* The metric to use for this unit system */
     QRect allocation = this->rect();
     QFontMetrics fm(font());
@@ -90,10 +150,12 @@ void QtRuleBar::drawTicker(QPainter *painter)
     digit_offset = 0;
     if (m_direction==Qt::Horizontal){
         width = allocation.width();
-        height = allocation.height();
+        height = mTickerSize;
+        offset = mLabelFont.pixelSize() + 4;
     }else{
         width = allocation.height();
-        height = allocation.width();
+        height = mTickerSize;
+        offset = mLabelFont.pixelSize() + 4;
     }
     if ( (upper - lower) == 0 ) return ;
     increment = (double) width / (upper - lower);
@@ -136,10 +198,10 @@ void QtRuleBar::drawTicker(QPainter *painter)
         for (cur = start; cur <= end; cur += subd_incr){
             pos = int(qRound((cur - lower) * increment + 1e-12));
             if (m_direction==Qt::Horizontal){
-                QRect rt(pos,height-length,1,length);
+                QRect rt(pos,height-length + offset,1,length + offset);
                 painter->drawLine(rt.topLeft(),rt.bottomLeft());
             }else{
-                QRect rt(height-length,pos,length,1);
+                QRect rt(height-length + offset,pos,length + offset,1);
                 painter->drawLine(rt.topLeft(),rt.topRight());
             }
             double label_spacing_px = fabs(increment*(double)ruler_metric.ruler_scale[scale]/ruler_metric.subdivide[i]);
@@ -154,9 +216,9 @@ void QtRuleBar::drawTicker(QPainter *painter)
                if (m_direction==Qt::Horizontal){
                    int w = fm.width(unit_str);
                    painter->drawText(pos + 2,
-                                     allocation.top(),
+                                     allocation.top() + offset,
                                      w,
-                                     RULER_SIZE,
+                                     mTickerSize,
                                      Qt::AlignLeft|Qt::AlignTop,unit_str);
                } else{
 #if 0
@@ -181,9 +243,9 @@ void QtRuleBar::drawTicker(QPainter *painter)
                    }
 #else
                    int w = fm.width(unit_str);
-                   QRect textRect(-w/2,-RULER_SIZE/2,w,RULER_SIZE);
+                   QRect textRect(-w/2,-mTickerSize/2,w,mTickerSize/2);
                    painter->save();
-                   painter->translate(4, pos + w/2+2);
+                   painter->translate(offset, pos + w/2+2);
                    painter->rotate(90);
                    painter->drawText(textRect,Qt::AlignRight,unit_str);
                    painter->restore();
@@ -204,16 +266,19 @@ void QtRuleBar::drawPos(QPainter *painter)
    double position;
    double lower = m_lower;
    double upper = m_upper;
+   int offset = 0;
    if (m_direction==Qt::Horizontal){
        width = allocation.width();
-       height = allocation.height();
+       height = allocation.height() / 2;
+       offset = height;
        bs_width = height / 2 + 2 ;
        bs_width |= 1;  /* make sure it's odd */
        bs_height = bs_width / 2 + 1;
        position = lower + (upper - lower) * m_lastPos.x() / allocation.width();
    }else{
-       width = allocation.height();
-       height = allocation.width();
+       width = allocation.width() / 2;
+       height = allocation.height();
+       offset = width;
        bs_height = width / 2 + 2 ;
        bs_height |= 1;  /* make sure it's odd */
        bs_width = bs_height / 2 + 1;
@@ -221,17 +286,22 @@ void QtRuleBar::drawPos(QPainter *painter)
    }
    if ((bs_width > 0) && (bs_height > 0)){
        double increment;
+       painter->save();
+       QPen pen = painter->pen();
+       pen.setColor(Qt::red);
+       painter->setPen(pen);
        if (m_direction==Qt::Horizontal){
            increment = (double) width / (upper - lower);
            x = qRound ((position - lower) * increment) + bs_width / 2 - 1;
            y = (height + bs_height) / 2 ;
-           painter->drawLine(m_lastPos.x(),0, m_lastPos.x() , height);
+           painter->drawLine(m_lastPos.x(),offset, m_lastPos.x() , offset + height);
        }else{
            increment = (double) height / (upper - lower);
            x = (width + bs_width) / 2 ;
            y = qRound ((position - lower) * increment) + (bs_height) / 2 - 1;
-           painter->drawLine(0 , m_lastPos.y() , width , m_lastPos.y());
+           painter->drawLine(offset , m_lastPos.y() , offset + width , m_lastPos.y());
        }
+       painter->restore();
    }
 }
 

@@ -10,7 +10,9 @@ DrawView::DrawView(QGraphicsScene *scene)
     :QGraphicsView(scene)
 {
     m_hruler = new QtRuleBar(Qt::Horizontal,this,this);
+    m_hruler->setLabel(tr("X Axis"));
     m_vruler = new QtRuleBar(Qt::Vertical,this,this);
+    m_vruler->setLabel(tr("Y Axis"));
     box = new QtCornerBox(this);
     setViewport(new QWidget);
 
@@ -190,13 +192,13 @@ void DrawView::resizeEvent(QResizeEvent *event)
 {
     QGraphicsView::resizeEvent(event);
 
-    this->setViewportMargins(RULER_SIZE-1,RULER_SIZE-1,0,0);
-    m_hruler->resize(this->size().width()- RULER_SIZE - 1,RULER_SIZE);
-    m_hruler->move(RULER_SIZE,0);
-    m_vruler->resize(RULER_SIZE,this->size().height() - RULER_SIZE - 1);
-    m_vruler->move(0,RULER_SIZE);
+    this->setViewportMargins(m_vruler->getRulerSize()-1,m_hruler->getRulerSize()-1,0,0);
+    m_hruler->resize(this->size().width()- m_vruler->getRulerSize() - 1,m_hruler->getRulerSize());
+    m_hruler->move(m_hruler->getRulerSize(),0);
+    m_vruler->resize(m_vruler->getRulerSize(),this->size().height() - m_vruler->getRulerSize() - 1);
+    m_vruler->move(0,m_hruler->getRulerSize());
 
-    box->resize(RULER_SIZE,RULER_SIZE);
+    box->resize(m_vruler->getRulerSize(),m_hruler->getRulerSize());
     box->move(0,0);
     updateRuler();
 }
