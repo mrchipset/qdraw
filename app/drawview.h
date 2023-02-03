@@ -1,6 +1,7 @@
 #ifndef DRAWVIEW_H
 #define DRAWVIEW_H
 #include <QGraphicsView>
+#include <QGraphicsPixmapItem>
 
 #include "rulebar.h"
 #include "drawobj.h"
@@ -25,11 +26,18 @@ public:
     QString currentFile() { return curFile; }
     void setModified( bool value ) { modified = value ; }
     bool isModified() const { return modified; }
+
+    bool setPrimaryImage(QGraphicsPixmapItem* pItem);
+    QGraphicsPixmapItem* getPrimaryImage() const;
+
+    bool appendImage(QGraphicsPixmapItem* image);
+    bool removeImage(QGraphicsPixmapItem* image);
+
 signals:
     void positionChanged(int x , int y );
 protected:
     void closeEvent(QCloseEvent *event) Q_DECL_OVERRIDE;
-
+    virtual void wheelEvent(QWheelEvent *event) Q_DECL_OVERRIDE;
     void mouseMoveEvent(QMouseEvent * event) Q_DECL_OVERRIDE;
     void resizeEvent(QResizeEvent *event) Q_DECL_OVERRIDE;
     void scrollContentsBy(int dx, int dy) Q_DECL_OVERRIDE;
@@ -37,6 +45,8 @@ protected:
     QtRuleBar *m_hruler;
     QtRuleBar *m_vruler;
     QtCornerBox * box;
+    QGraphicsPixmapItem* mPrimaryImage;
+    QList<QGraphicsPixmapItem*> mImages;
 
     virtual bool event(QEvent* ev) override;
 private:
@@ -49,6 +59,7 @@ private:
     QString curFile;
     bool isUntitled;
     bool modified;
+
 };
 
 #endif // DRAWVIEW_H

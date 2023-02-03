@@ -551,7 +551,7 @@ DrawView *MainWindow::createMdiChild()
     view->setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
 
     // move orign point to leftbottom
-    view->setTransform(view->transform().scale(1,-1));
+//    view->setTransform(view->transform().scale(1,-1));
 
 
     scene->setBackgroundBrush(Qt::darkGray);

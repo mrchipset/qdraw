@@ -3,11 +3,13 @@
 #include <QSvgGenerator>
 #include <QXmlStreamWriter>
 #include <QXmlStreamReader>
+#include <QOpenGLWidget>
 
 //http://www.w3.org/TR/SVG/Overview.html
 
 DrawView::DrawView(QGraphicsScene *scene)
-    :QGraphicsView(scene)
+    :QGraphicsView(scene),
+      mPrimaryImage(nullptr)
 {
     m_hruler = new QtRuleBar(Qt::Horizontal,this,this);
     m_hruler->setLabel(tr("X Axis"));
@@ -21,6 +23,9 @@ DrawView::DrawView(QGraphicsScene *scene)
 
     modified = false;
     setCacheMode(QGraphicsView::CacheNone);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+//    setViewport(new QOpenGLWidget());
 }
 
 void DrawView::zoomIn()
@@ -31,7 +36,17 @@ void DrawView::zoomIn()
 
 void DrawView::zoomOut()
 {
-    scale(1 / 1.2, 1 / 1.2);
+    if (transform().m11() / 1.2 < contentsRect().width() / scene()->width() ) {
+//        const double _scale = (contentsRect().width() / scene()->width());
+//        resetTransform();
+//        scale(_scale, _scale);
+        if (mPrimaryImage) {
+            fitInView(scene()->sceneRect());
+            centerOn(mPrimaryImage);
+        }
+    } else {
+        scale(1 / 1.2, 1 / 1.2);
+    }
     updateRuler();
 }
 
@@ -80,13 +95,7 @@ bool DrawView::loadFile(const QString &fileName)
         else {
             QGraphicsPixmapItem* pItem = new QGraphicsPixmapItem();
             pItem->setPixmap(QPixmap::fromImage(img));
-            scene()->addItem(pItem);
-            scene()->setSceneRect(pItem->boundingRect());
-            pItem->setPos(0, 0);
-            QApplication::processEvents();
-            fitInView(pItem, Qt::IgnoreAspectRatio);
-            centerOn(pItem);
-            updateRuler();
+            setPrimaryImage(pItem);
         }
     }
 
@@ -170,6 +179,57 @@ QString DrawView::userFriendlyCurrentFile()
     return strippedName(curFile);
 }
 
+bool DrawView::setPrimaryImage(QGraphicsPixmapItem* image)
+{
+    // 1. set the scene
+    // 2. add the image to scene
+    // 3. fit the view
+    if (mPrimaryImage) {
+        scene()->removeItem(mPrimaryImage);
+    }
+    mPrimaryImage = image;
+    QRectF rect = mPrimaryImage->boundingRect();
+    rect.translate(QPointF(-rect.width(), -rect.height()));
+    mPrimaryImage->setPos(QPointF(-rect.width(), -rect.height()));
+    scene()->setSceneRect(rect);
+    scene()->addItem(mPrimaryImage);
+    // fit to the view
+    fitInView(mPrimaryImage, Qt::IgnoreAspectRatio);
+    centerOn(mPrimaryImage);
+    updateRuler();
+    qDebug() << transform().m11() << viewport()->contentsRect().width() / scene()->width();
+    return true;
+}
+
+QGraphicsPixmapItem* DrawView::getPrimaryImage() const
+{
+    return mPrimaryImage;
+}
+
+bool DrawView::appendImage(QGraphicsPixmapItem* image)
+{
+    // add image to list
+    // add image to scene
+    if (mImages.contains(image)) {
+        return false;
+    } else {
+        mImages.append(image);
+        scene()->addItem(image);
+        return true;
+    }
+}
+
+bool DrawView::removeImage(QGraphicsPixmapItem* image)
+{
+    if (mImages.contains(image)) {
+        mImages.removeAll(image);
+        scene()->removeItem(image);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void DrawView::closeEvent(QCloseEvent *event)
 {
     if (maybeSave()) {
@@ -177,6 +237,28 @@ void DrawView::closeEvent(QCloseEvent *event)
     } else {
         event->ignore();
     }
+}
+
+void DrawView::wheelEvent(QWheelEvent *event)
+{
+    const int xAngle = event->angleDelta().x() / 8;
+    const int yAngle = event->angleDelta().y() / 8;
+    if (yAngle != 0) {
+        if (yAngle > 0) {
+            zoomIn();
+        } else {
+            zoomOut();
+        }
+    } else {
+        if (xAngle!=0) {
+            if (xAngle > 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        }
+    }
+    event->accept();
 }
 
 void DrawView::mouseMoveEvent(QMouseEvent *event)
@@ -200,6 +282,13 @@ void DrawView::resizeEvent(QResizeEvent *event)
 
     box->resize(m_vruler->getRulerSize(),m_hruler->getRulerSize());
     box->move(0,0);
+
+    // set the scale factor to 1.0
+    if (mPrimaryImage) {
+        fitInView(mPrimaryImage, Qt::IgnoreAspectRatio);
+        centerOn(mPrimaryImage);
+    }
+
     updateRuler();
 }
 
@@ -353,4 +442,6 @@ void DrawView::showAll()
     fitInView(scene()->sceneRect(), Qt::IgnoreAspectRatio);
     updateRuler();
 }
+
+
 
